@@ -2,9 +2,9 @@
 """
 rsi_check.py — runs ONCE, then exits. Designed for GitHub Actions.
 
-Checks whether RSI just crossed a threshold on the most recently CLOSED
-candle, and sends an ntfy push if so. Stateless: each run reads only
-Hyperliquid candle history, so no database or saved state is needed.
+For each coin in COINS, checks whether RSI just crossed a threshold on the
+most recently CLOSED candle, and sends an ntfy push if so. Stateless: each
+run reads only Hyperliquid candle history, so no saved state is needed.
 """
 
 import os
@@ -12,7 +12,7 @@ import time
 import requests
 
 # ─────────── settings you can edit ───────────
-COIN       = "BTC"     # Hyperliquid symbol: BTC, ETH, SOL, HYPE, ...
+COINS      = ["BTC", "ETH", "HYPE", "ZEC", "SOL"]   # Hyperliquid perp symbols
 INTERVAL   = "5m"      # 1m 3m 5m 15m 30m 1h 2h 4h 1d ...
 RSI_PERIOD = 14
 UPPER      = 70        # overbought
@@ -69,30 +69,38 @@ def push(title, msg, tags):
     )
 
 
-def main():
-    if not NTFY_TOPIC:
-        print("NTFY_TOPIC not set — add it as a GitHub Secret.")
-        return
-
-    closes = fetch_closes(COIN, INTERVAL)
+def check_coin(coin):
+    closes = fetch_closes(coin, INTERVAL)
     if len(closes) < RSI_PERIOD + 3:
-        print("Not enough candle data.")
+        print(f"{coin}: not enough candle data")
         return
 
     closed = closes[:-1]                  # drop the still-forming candle
     now  = rsi(closed, RSI_PERIOD)        # RSI at the last closed candle
     prev = rsi(closed[:-1], RSI_PERIOD)   # RSI at the candle before it
-    print(f"{COIN} {INTERVAL}  RSI prev={prev:.1f}  now={now:.1f}")
+    print(f"{coin} {INTERVAL}  RSI prev={prev:.1f}  now={now:.1f}")
 
     if prev < UPPER <= now:
-        push(f"{COIN} overbought",
+        push(f"{coin} overbought",
              f"RSI crossed {UPPER} (now {now:.1f}) on {INTERVAL}", "red_circle")
-        print("ALERT: overbought")
+        print(f"ALERT: {coin} overbought")
 
     if prev > LOWER >= now:
-        push(f"{COIN} oversold",
+        push(f"{coin} oversold",
              f"RSI crossed {LOWER} (now {now:.1f}) on {INTERVAL}", "green_circle")
-        print("ALERT: oversold")
+        print(f"ALERT: {coin} oversold")
+
+
+def main():
+    if not NTFY_TOPIC:
+        print("NTFY_TOPIC not set — add it as a GitHub Secret.")
+        return
+
+    for coin in COINS:
+        try:
+            check_coin(coin)
+        except Exception as e:
+            print(f"{coin}: error — {e}")
 
 
 if __name__ == "__main__":
