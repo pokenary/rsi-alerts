@@ -84,13 +84,13 @@ def main():
     prev = rsi(closed[:-1], RSI_PERIOD)   # RSI at the candle before it
     print(f"{COIN} {INTERVAL}  RSI prev={prev:.1f}  now={now:.1f}")
 
-    if True:
-        push(f"🔴 {COIN} overbought",
+    if prev < UPPER <= now:
+        push(f"{COIN} overbought",
              f"RSI crossed {UPPER} (now {now:.1f}) on {INTERVAL}", "red_circle")
         print("ALERT: overbought")
 
     if prev > LOWER >= now:
-        push(f"🟢 {COIN} oversold",
+        push(f"{COIN} oversold",
              f"RSI crossed {LOWER} (now {now:.1f}) on {INTERVAL}", "green_circle")
         print("ALERT: oversold")
 
